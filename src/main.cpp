@@ -33,12 +33,28 @@ void updateDisplay(Ts&&... args) {
   M5.Lcd.printf(std::forward<Ts>(args)...);
 }
 
+// C++17 deduction guides doesn't work =(
 constexpr auto strings =
     std::array<char const*, 7>({"Hello", "Fuck you!", "Have a nice day!", "Im done", "GG", "Have fun!", "Dude!"});
 std::size_t currentStringIndex = 0;
 
 inline void updateStringIndex(int offset = 0) noexcept {
   currentStringIndex = (currentStringIndex + strings.size() + offset) % strings.size();
+}
+
+std::int8_t batteryLevel = 0;
+
+int8_t getBatteryLevel(bool force = false) noexcept {
+  static std::int8_t value = -1;
+  static unsigned long prevMillis = 0;
+
+  auto newMillis = ::millis();
+  if (newMillis - prevMillis >= 5000 || force) {
+    prevMillis = newMillis;
+    value = M5.Power.getBatteryLevel();
+  }
+
+  return value;
 }
 
 void showConnectedState() {
@@ -49,7 +65,24 @@ void showConnectedState() {
   }
   keyboardConnectedFlag = keyboard.isConnected();
 
-  updateDisplay<Row<0>, Color<TFT_GREEN>>(keyboardConnectedFlag ? "Connected" : "Disconnected");
+  updateDisplay<Row<0>>("Bluetooh: %s", keyboardConnectedFlag ? "Connected" : "Disconnected");
+}
+
+void showBatteryLevel() {
+  static std::int8_t batteryLevel = -1;
+
+  if (batteryLevel == getBatteryLevel()) {
+    return;
+  }
+  batteryLevel = getBatteryLevel();
+
+  updateDisplay<Row<1>>("Battery: %d%%", int(batteryLevel));
+}
+
+void keyboardUpdateBatteryLevel() {
+  if (keyboard.batteryLevel != getBatteryLevel()) {
+    keyboard.setBatteryLevel(getBatteryLevel());
+  }
 }
 
 char const* getCurrentString() noexcept {
@@ -63,7 +96,7 @@ void showCurrentString() {
   }
 
   currentString = getCurrentString();
-  updateDisplay<Row<3>, Color<TFT_ORANGE>>(currentString);
+  updateDisplay<Row<4>, Color<TFT_ORANGE>>("  %s", currentString);
 }
 
 void setup() {
@@ -73,9 +106,11 @@ void setup() {
   keyboard.begin();
 
   M5.Lcd.clear(BLACK);
-  M5.Lcd.setTextSize(3);
+  M5.Lcd.setTextSize(2);
 
-  updateDisplay<Row<2>>("Phrase:");
+  updateDisplay<Row<3>>("Phrase:");
+
+  getBatteryLevel(true);
 }
 
 void loop() {
@@ -98,5 +133,7 @@ void loop() {
   }
 
   showConnectedState();
+  showBatteryLevel();
   showCurrentString();
+  keyboardUpdateBatteryLevel();
 }
