@@ -1,0 +1,10 @@
+BasedOnStyle: LLVM
+ColumnLimit: 120
+---
+Language: Cpp
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Empty
+AlwaysBreakTemplateDeclarations: Yes
+PointerAlignment: Left
+SpaceAfterTemplateKeyword: false
