@@ -22,7 +22,7 @@ inline void updateStringIndex(int offset = 0) noexcept {
   currentStringIndex = (currentStringIndex + strings.size() + offset) % strings.size();
 }
 
-void showConnectedState() {
+void showBluetoothConnectedState() {
   static bool keyboardConnectedFlag = true;
 
   if (keyboardConnectedFlag == keyboard.isConnected()) {
@@ -43,18 +43,31 @@ void showCurrentString() {
     return;
   }
   currentString = getCurrentString();
-  print<Row<3>, Orange, Black>("  %s", currentString);
+  print<Row<4>, Orange, Black>("  %s", currentString);
+}
+
+void showBatteryLevel() {
+  static int batteryLevel = -1;
+
+  int const value = M5.Power.getBatteryLevel();
+  if (value == batteryLevel) {
+    return;
+  }
+  batteryLevel = value;
+  print<Row<1>, DarkGrey, Black>("Battery: %d%%", batteryLevel);
 }
 
 void setup() {
   M5.begin();
+  M5.Power.begin();
+  M5.Power.setWakeupButton(BUTTON_B_PIN);
 
   keyboard.begin();
 
   M5.Lcd.clear(BLACK);
   M5.Lcd.setTextSize(2);
 
-  print<Row<2>, White, Black>("Phrase:");
+  print<Row<3>, White, Black>("Phrase:");
 }
 
 void loop() {
@@ -68,13 +81,21 @@ void loop() {
     updateStringIndex(1);
   }
 
-  if (M5.BtnB.wasPressed()) {
-    if (keyboard.isConnected()) {
-      keyboard.print(getCurrentString());
-      keyboard.write(KEY_RETURN);
-    }
+  if (M5.BtnB.pressedFor(3000)) {
+    M5.Power.deepSleep(0);
+  } else if (M5.BtnB.wasReleased()) {
+    keyboard.print(getCurrentString());
+    keyboard.write(KEY_RETURN);
   }
 
-  showConnectedState();
+  showBluetoothConnectedState();
+  showBatteryLevel();
   showCurrentString();
+
+  uint32_t const now = millis();
+  uint32_t const lastChange = std::max({M5.BtnA.lastChange(), M5.BtnB.lastChange(), M5.BtnC.lastChange()});
+  constexpr uint32_t idleTimeout = 5 * 60 * 1000;
+  if (now - lastChange > idleTimeout) {
+    M5.Power.deepSleep(0);
+  }
 }
